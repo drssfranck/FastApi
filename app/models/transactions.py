@@ -1,10 +1,10 @@
 from pydantic import BaseModel
-from typing import Optional, Dict
+from typing import Optional
 from datetime import datetime
 
 class Transaction(BaseModel):
     id: int
-    date: Optional[str]
+    date: Optional[datetime]
     client_id: int
     card_id: int
     amount: float
@@ -13,19 +13,7 @@ class Transaction(BaseModel):
     merchant_city: Optional[str]
     merchant_state: Optional[str]
     zip: Optional[float]
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "id": 7475327,
-                "date": "2010-01-01T00:01:00",
-                "client_id": 1556,
-                "card_id": 2972,
-                "amount": -77.00,
-                "use_chip": "Swipe Transaction",
-                "merchant_id": 59935,
-                "merchant_city": "Beulah",
-                "merchant_state": "ND",
-                "zip": 58523.0
-            }
-        }
+    mcc: Optional[int] = None
+    errors: Optional[str] = None
+
+ 
