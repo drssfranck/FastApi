@@ -19,4 +19,4 @@ COPY ./app ./app
 EXPOSE 8000
 
 # Commande de démarrage
-CMD ["sh", "-c", "python app/data/import_data.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python app/data/import_data.py && uvicorn app.main:app --host 0.0.0.0 --port 7860"]
