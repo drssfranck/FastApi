@@ -2,7 +2,11 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
+
 class Transaction(BaseModel):
+    """
+    Schéma représentant une transaction bancaire.
+    """
     id: int
     date: Optional[datetime]
     client_id: int
@@ -12,8 +16,12 @@ class Transaction(BaseModel):
     merchant_id: Optional[int]
     merchant_city: Optional[str]
     merchant_state: Optional[str]
-    zip: Optional[float]
-    mcc: Optional[int] = None
-    errors: Optional[str] = None
+    zip: Optional[int]
+    mcc: Optional[int]
+    errors: Optional[str]
+
+    class Config:
+        orm_mode = True
+
 
  
