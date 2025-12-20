@@ -1,0 +1,8 @@
+services:
+  apibank:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      KAGGLE_USERNAME: idrissfranck
+      KAGGLE_KEY: 310705bbe430b874dc030dd6208a6175

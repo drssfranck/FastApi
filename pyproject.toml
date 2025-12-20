@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apibank"
+version = "0.1.0"
+description = "API FastAPI pour la gestion des transactions bancaires"
+authors = [
+    {name = "Idriss MBE", email = "i_mbe@stu-mba-esg.com"},
+    {name = "Nadiath SAKA", email = "y_lam@stu-mba-esg.com"},
+    {name = "Michele FAMENI", email = "y_lam@stu-mba-esg.com"},
+    {name = "Raouf", email = "y_lam@stu-mba-esg.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "pandas>=2.0.0",
+    "pydantic>=2.5.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["app"]
