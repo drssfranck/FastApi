@@ -2,7 +2,7 @@ name: Python Tests
 
 on:
   push:
-    branches: [ main, transactions ]
+    branches: [ main, transactions,master,fraude,client ]
   pull_request:
     branches: [ main ]
 
