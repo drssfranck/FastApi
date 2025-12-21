@@ -41,8 +41,8 @@ jobs:
           mkdir -p app/data/dataset
           touch app/data/dataset/cards_data.csv
           touch app/data/dataset/users_data.csv
-          touch app/data/dataset/mcc_codes.csv
-          touch app/data/dataset/fraud_data.csv
+          touch app/data/dataset/mcc_codes.json
+          touch app/data/dataset/train_fraud_labels.json
           touch app/data/dataset/transactions_data.csv
           echo "Fichiers de données simulés créés pour éviter le crash au démarrage."
 
