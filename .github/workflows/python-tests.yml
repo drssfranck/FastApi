@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, transactions, master, fraude, client]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   test:
@@ -35,16 +35,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      # --- ÉTAPE DE CONTOURNEMENT : CRÉATION DES FICHIERS FICTIFS ---
+      # --- ÉTAPE CRUCIALE : CRÉATION DES FICHIERS AVEC EN-TÊTES ---
       - name: Create dummy data for tests
         run: |
           mkdir -p app/data/dataset
-          touch app/data/dataset/cards_data.csv
-          touch app/data/dataset/users_data.csv
-          touch app/data/dataset/mcc_codes.json
-          touch app/data/dataset/train_fraud_labels.json
-          touch app/data/dataset/transactions_data.csv
-          echo "Fichiers de données simulés créés pour éviter le crash au démarrage."
+          # On écrit une colonne 'id' pour que Pandas ne dise plus 'EmptyDataError'
+          echo "id" > app/data/dataset/cards_data.csv
+          echo "id" > app/data/dataset/users_data.csv
+          echo "id" > app/data/dataset/transactions_data.csv
+          # Pour les JSON, on met un objet vide
+          echo "{}" > app/data/dataset/mcc_codes.json
+          echo "{}" > app/data/dataset/train_fraud_labels.json
+          echo "Fichiers simulés créés avec succès."
 
       - name: Run tests
         run: pytest -v
