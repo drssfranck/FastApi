@@ -2,6 +2,7 @@ import app
 from fastapi import FastAPI
 from app.route.transaction_routes import  transaction_routes
 from app.route.clients_routes import client_route
+from app.route.administration_routes import administration
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -17,3 +18,4 @@ app.add_middleware(
 
 app.include_router(transaction_routes)
 app.include_router(client_route)
+app.include_router(administration)

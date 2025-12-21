@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apibank"
-version = "0.1.0"
+version = "1.0.0"
 description = "API FastAPI pour la gestion des transactions bancaires"
 authors = [
     {name = "Idriss MBE", email = "i_mbe@stu-mba-esg.com"},
