@@ -22,9 +22,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
-      
       - name: Cache pip
         uses: actions/cache@v3
         with:
@@ -38,5 +35,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      # --- ÉTAPE DE CONTOURNEMENT : CRÉATION DES FICHIERS FICTIFS ---
+      - name: Create dummy data for tests
+        run: |
+          mkdir -p app/data/dataset
+          touch app/data/dataset/cards_data.csv
+          touch app/data/dataset/users_data.csv
+          touch app/data/dataset/mcc_codes.csv
+          touch app/data/dataset/fraud_data.csv
+          touch app/data/dataset/transactions_data.csv
+          echo "Fichiers de données simulés créés pour éviter le crash au démarrage."
+
       - name: Run tests
         run: pytest -v
