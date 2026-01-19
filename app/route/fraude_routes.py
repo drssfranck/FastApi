@@ -9,7 +9,7 @@ from app.data.load_data import load_transactions
 fraud_routes = APIRouter()
 
 # Route racine
-@fraud_routes.get("/")
+@fraud_routes.get("/api/fraud/")
 def read_fraud_root():
     """
     Route racine de l'API de détection de fraude.
