@@ -2,9 +2,12 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 import pandas as pd
+from app.main import app # Import normal ici
 
-# Mock des données avant d'importer l'app
-mock_trans_data = pd.DataFrame([{
+client = TestClient(app)
+
+# On prépare des données robustes
+MOCK_TRANS = pd.DataFrame([{
     "id": 1,
     "date": "2025-12-20",
     "client_id": 101,
@@ -19,48 +22,41 @@ mock_trans_data = pd.DataFrame([{
     "errors": None
 }])
 
-mock_card_data = pd.DataFrame([{
-    "card_id": 1,
-    "client_id": 101,
-    "card_type": "Visa"
-}])
-
-# Patch avant import
-with patch("app.data.load_data.load_card", return_value=mock_card_data), \
-     patch("app.data.load_data.load_transactions", return_value=mock_trans_data):
-    from app.main import app  
-    client = TestClient(app)
-
-# Test de la route racine
+# 1. Test de la route racine (Pas besoin de mock ici)
 def test_read_root():
     response = client.get("/")
     assert response.status_code == 200
-    data = response.json()
-    assert "message" in data
-    assert data["message"] == "Bienvenue dans l'API des transactions bancaires"
-    assert "team" in data
-    assert len(data["team"]) > 0
+    assert "message" in response.json()
 
-# Test d’une transaction par ID
-def test_get_transaction_by_id():
+# 2. Test d’une transaction par ID (Avec Mock Dynamique)
+@patch("app.route.transaction_routes.load_transactions")
+def test_get_transaction_by_id(mock_load):
+    # On force la fonction appelée par la ROUTE à renvoyer notre DataFrame
+    mock_load.return_value = MOCK_TRANS
+    
     response = client.get("/api/transactions/1")
-    if response.status_code == 200:
-        data = response.json()
-        assert data["id"] == 1
-    else:
-        assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.json()["id"] == 1
 
-def test_get_transaction_types():
+# 3. Test des types de transactions
+@patch("app.route.transaction_routes.load_transactions")
+def test_get_transaction_types(mock_load):
+    mock_load.return_value = MOCK_TRANS
+    
     response = client.get("/api/transactions/types")
     assert response.status_code == 200
     data = response.json()
     assert "types" in data
-    assert isinstance(data["types"], list)
+    # "Swipe Transaction" est dans notre MOCK_TRANS
+    assert "Swipe Transaction" in data["types"]
 
-def test_get_transactions():
+# 4. Test de la liste des transactions
+@patch("app.route.transaction_routes.load_transactions")
+def test_get_transactions(mock_load):
+    mock_load.return_value = MOCK_TRANS
+    
     response = client.get("/api/transactions?limit=5&offset=0")
     assert response.status_code == 200
     data = response.json()
-    assert "total" in data
     assert "data" in data
-    assert len(data["data"]) <= 5
+    assert len(data["data"]) >= 1

@@ -5,6 +5,9 @@ DATA_DIR = Path("app/data/dataset")
 
 _transactions_df = None
 _df_card_data = None
+_mcc_codes_df = None
+_train_fraud_df = None
+_user_data_df = None
 
 
 
@@ -44,3 +47,40 @@ def load_card():
     _df_card_data = pd.read_csv(DATA_DIR / "cards_data.csv")
 
     return _df_card_data
+
+def load_mcc_codes():
+    """Charge les codes MCC à partir du fichier csv."""
+    
+    global _mcc_codes_df
+    _mcc_codes_df = pd.read_json(DATA_DIR / "mcc_codes.json")
+
+    return _mcc_codes_df
+
+def load_train_fraud():
+    """Charge les données d'entraînement de fraude à partir du fichier csv."""
+    
+    global _train_fraud_df
+    _train_fraud_df = pd.read_json(DATA_DIR / "train_fraud_labels.json")
+
+    return _train_fraud_df
+
+def load_user_data():
+    """Charge les données utilisateur à partir du fichier csv."""
+    
+    global _user_data_df
+    _user_data_df = pd.read_csv(DATA_DIR / "users_data.csv")
+
+    return _user_data_df
+
+def is_dataset_loaded() -> bool:
+    missing = []
+    if _user_data_df is None: missing.append("users")
+    if _df_card_data is None: missing.append("cards")
+    if _mcc_codes_df is None: missing.append("mcc")
+    if _train_fraud_df is None: missing.append("fraud")
+    if _transactions_df is None: missing.append("transactions")
+    
+    if missing:
+        print(f"Datasets non chargés : {', '.join(missing)}")
+        return False
+    return True

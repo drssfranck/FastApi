@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, transactions, master, fraude, client]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   test:
@@ -22,9 +22,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
-      
       - name: Cache pip
         uses: actions/cache@v3
         with:
@@ -38,5 +35,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      # --- ÉTAPE CRUCIALE : CRÉATION DES FICHIERS AVEC EN-TÊTES ---
+      - name: Create dummy data for tests
+        run: |
+          mkdir -p app/data/dataset
+          # On écrit une colonne 'id' pour que Pandas ne dise plus 'EmptyDataError'
+          echo "id" > app/data/dataset/cards_data.csv
+          echo "id" > app/data/dataset/users_data.csv
+          echo "id" > app/data/dataset/transactions_data.csv
+          # Pour les JSON, on met un objet vide
+          echo "{}" > app/data/dataset/mcc_codes.json
+          echo "{}" > app/data/dataset/train_fraud_labels.json
+          echo "Fichiers simulés créés avec succès."
+
       - name: Run tests
         run: pytest -v
