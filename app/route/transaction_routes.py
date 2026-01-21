@@ -37,8 +37,8 @@ def read_root():
         },
         {
             "name": "Michele FAMENI",
-            "email": "y_lam@stu-mba-esg.com",
-            "github": "https://github.com/michelefameni"
+            "email": "m_fameningankoue@stu-mba-esg.com",
+            "github": "https://github.com/famenimichele"
         },
         {
             "name": "Raouf",
