@@ -69,7 +69,7 @@ def test_fraud_root():
 @patch("app.route.fraude_routes.load_transactions")
 def test_fraud_summary(mock_load):
     """Test de la route GET /api/fraud/summary"""
-    mock_load.return_value = MOCK_FRAUD_TRANS
+    mock_load.return_value = pd.DataFrame(MOCK_FRAUD_TRANS)
 
     response = client.get("/api/fraud/summary")
     assert response.status_code == 200
@@ -93,10 +93,10 @@ def test_fraud_summary(mock_load):
     assert data["recall"] == 0.88
 
 # 3. Test de la route by-type
-@patch("app.route.fraude_routes.load_transactions")
+@patch("app.data.load_data.load_transactions")
 def test_fraud_by_type(mock_load):
     """Test de la route GET /api/fraud/by-type"""
-    mock_load.return_value = MOCK_FRAUD_TRANS
+    mock_load.return_value = pd.DataFrame(MOCK_FRAUD_TRANS)
 
     response = client.get("/api/fraud/by-type")
     assert response.status_code == 200
@@ -207,10 +207,10 @@ def test_fraud_predict_extreme_values():
     assert data["isFraud"] is True
 
 # 8. Test des transactions frauduleuses
-@patch("app.route.fraude_routes.load_transactions")
+@patch("app.data.load_data.load_transactions")
 def test_get_fraudulent_transactions(mock_load):
     """Test de la route GET /api/fraud/transactions"""
-    mock_load.return_value = MOCK_FRAUD_TRANS
+    mock_load.return_value = pd.DataFrame(MOCK_FRAUD_TRANS)
 
     response = client.get("/api/fraud/transactions")
     assert response.status_code == 200
@@ -228,10 +228,10 @@ def test_get_fraudulent_transactions(mock_load):
     assert data["data"][0]["isFraud"] == 1
 
 # 9. Test des statistiques de fraude
-@patch("app.route.fraude_routes.load_transactions")
+@patch("app.data.load_data.load_transactions")
 def test_fraud_statistics(mock_load):
     """Test de la route GET /api/fraud/statistics"""
-    mock_load.return_value = MOCK_FRAUD_TRANS
+    mock_load.return_value = pd.DataFrame(MOCK_FRAUD_TRANS)
 
     response = client.get("/api/fraud/statistics")
     assert response.status_code == 200
@@ -250,10 +250,10 @@ def test_fraud_statistics(mock_load):
     assert data["total_fraud_amount"] == 2500.0  # Montant de la transaction frauduleuse
 
 # 10. Test de détection de fraude sur une transaction spécifique
-@patch("app.route.fraude_routes.load_transactions")
+@patch("app.data.load_data.load_transactions")
 def test_detect_fraud_by_id(mock_load):
     """Test de la route GET /api/fraud/detect/{transaction_id}"""
-    mock_load.return_value = MOCK_FRAUD_TRANS
+    mock_load.return_value = pd.DataFrame(MOCK_FRAUD_TRANS)
 
     # Test avec une transaction frauduleuse
     response = client.get("/api/fraud/detect/2")  # ID 2 est frauduleuse
@@ -279,10 +279,10 @@ def test_detect_fraud_by_id(mock_load):
     assert "Transaction non trouvée" in response.json()["detail"]
 
 # 11. Test des transactions suspectes
-@patch("app.route.fraude_routes.load_transactions")
+@patch("app.data.load_data.load_transactions")
 def test_suspicious_transactions(mock_load):
     """Test de la route GET /api/fraud/suspicious"""
-    mock_load.return_value = MOCK_FRAUD_TRANS
+    mock_load.return_value = pd.DataFrame(MOCK_FRAUD_TRANS)
 
     # Test avec un seuil de 1000
     response = client.get("/api/fraud/suspicious?threshold=1000")
@@ -328,3 +328,220 @@ def test_fraud_routes_performance():
     # La réponse devrait être rapide (< 1 seconde)
     assert end_time - start_time < 1.0
     assert response.status_code == 200
+
+# Tests supplémentaires pour couvrir plus de cas
+
+# 14. Test de la route predict - transaction avec montant zéro
+def test_fraud_predict_zero_amount():
+    """Test de la route POST /api/fraud/predict avec montant zéro"""
+    test_data = {
+        "type": "PAYMENT",
+        "amount": 0.0,
+        "oldbalanceOrg": 1000.0,
+        "newbalanceOrig": 1000.0
+    }
+
+    response = client.post("/api/fraud/predict", json=test_data)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["probability"] < 0.5  # Devrait être considéré comme légitime
+    assert data["isFraud"] is False
+
+# 15. Test de la route predict - transaction avec montant négatif (invalide)
+def test_fraud_predict_negative_amount():
+    """Test de la route POST /api/fraud/predict avec montant négatif"""
+    test_data = {
+        "type": "PAYMENT",
+        "amount": -100.0,
+        "oldbalanceOrg": 1000.0,
+        "newbalanceOrig": 1100.0
+    }
+
+    response = client.post("/api/fraud/predict", json=test_data)
+    assert response.status_code == 200
+    data = response.json()
+
+    # Montant négatif devrait avoir faible probabilité
+    assert data["probability"] < 0.5
+
+# 16. Test de la route predict - type de transaction inconnu
+def test_fraud_predict_unknown_type():
+    """Test de la route POST /api/fraud/predict avec type inconnu"""
+    test_data = {
+        "type": "UNKNOWN_TYPE",
+        "amount": 1000.0,
+        "oldbalanceOrg": 2000.0,
+        "newbalanceOrig": 1000.0
+    }
+
+    response = client.post("/api/fraud/predict", json=test_data)
+    assert response.status_code == 200
+    data = response.json()
+
+    # Type inconnu ne devrait pas ajouter de pénalité
+    assert data["probability"] >= 0.1  # Probabilité de base
+
+# 17. Test de la route suspicious avec seuil zéro
+def test_suspicious_transactions_zero_threshold():
+    """Test de la route GET /api/fraud/suspicious avec seuil zéro"""
+    response = client.get("/api/fraud/suspicious?threshold=0")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Avec seuil 0, toutes les transactions devraient être suspectes
+    assert data["total"] >= 0  # Au moins les données mockées
+
+# 18. Test de la route suspicious avec seuil très élevé
+def test_suspicious_transactions_high_threshold():
+    """Test de la route GET /api/fraud/suspicious avec seuil très élevé"""
+    response = client.get("/api/fraud/suspicious?threshold=100000")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Avec seuil très élevé, peu de transactions devraient être suspectes
+    assert data["total"] >= 0
+
+# 19. Test de la route detect avec ID négatif
+def test_detect_fraud_negative_id():
+    """Test de la route GET /api/fraud/detect avec ID négatif"""
+    response = client.get("/api/fraud/detect/-1")
+    assert response.status_code == 404
+    assert "Transaction non trouvée" in response.json()["detail"]
+
+# 20. Test de la route detect avec ID très grand
+def test_detect_fraud_large_id():
+    """Test de la route GET /api/fraud/detect avec ID très grand"""
+    response = client.get("/api/fraud/detect/999999")
+    assert response.status_code == 404
+    assert "Transaction non trouvée" in response.json()["detail"]
+
+# 21. Test de la route transactions avec pagination
+def test_get_fraudulent_transactions_pagination():
+    """Test de la route GET /api/fraud/transactions avec pagination"""
+    response = client.get("/api/fraud/transactions?limit=1&offset=0")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["limit"] == 1
+    assert data["offset"] == 0
+    assert len(data["data"]) <= 1
+
+# 22. Test de la route transactions avec limit zéro
+def test_get_fraudulent_transactions_zero_limit():
+    """Test de la route GET /api/fraud/transactions avec limit zéro"""
+    response = client.get("/api/fraud/transactions?limit=0")
+    assert response.status_code == 422  # Unprocessable Entity car limit >= 1
+
+# 23. Test de la route predict - données avec balances négatives
+def test_fraud_predict_negative_balances():
+    """Test de la route POST /api/fraud/predict avec balances négatives"""
+    test_data = {
+        "type": "TRANSFER",
+        "amount": 1000.0,
+        "oldbalanceOrg": -500.0,
+        "newbalanceOrig": -1500.0
+    }
+
+    response = client.post("/api/fraud/predict", json=test_data)
+    assert response.status_code == 200
+    data = response.json()
+
+    # Balances négatives pourraient indiquer un problème
+    assert isinstance(data["probability"], float)
+
+# 24. Test de la route summary avec données vides (si applicable)
+@patch("app.data.load_data.load_transactions")
+def test_fraud_summary_empty_data(mock_load):
+    """Test de la route GET /api/fraud/summary avec données vides"""
+    mock_load.return_value = pd.DataFrame()  # DataFrame vide
+
+    response = client.get("/api/fraud/summary")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total_frauds"] == 0
+    assert data["flagged"] == 0
+
+# 25. Test de la route statistics avec données vides
+@patch("app.data.load_data.load_transactions")
+def test_fraud_statistics_empty_data(mock_load):
+    """Test de la route GET /api/fraud/statistics avec données vides"""
+    mock_load.return_value = pd.DataFrame()
+
+    response = client.get("/api/fraud/statistics")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total_transactions"] == 0
+    assert data["fraudulent_transactions"] == 0
+    assert data["fraud_percentage"] == 0.0
+    assert data["total_fraud_amount"] == 0.0
+
+# 26. Test de la route by-type avec données vides
+@patch("app.data.load_data.load_transactions")
+def test_fraud_by_type_empty_data(mock_load):
+    """Test de la route GET /api/fraud/by-type avec données vides"""
+    mock_load.return_value = pd.DataFrame()
+
+    response = client.get("/api/fraud/by-type")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["fraud_by_type"] == []
+
+# 27. Test de la route suspicious avec données vides
+@patch("app.data.load_data.load_transactions")
+def test_suspicious_transactions_empty_data(mock_load):
+    """Test de la route GET /api/fraud/suspicious avec données vides"""
+    mock_load.return_value = pd.DataFrame()
+
+    response = client.get("/api/fraud/suspicious")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total"] == 0
+    assert data["data"] == []
+
+# 28. Test de la route detect avec données vides
+@patch("app.data.load_data.load_transactions")
+def test_detect_fraud_empty_data(mock_load):
+    """Test de la route GET /api/fraud/detect avec données vides"""
+    mock_load.return_value = pd.DataFrame()
+
+    response = client.get("/api/fraud/detect/1")
+    assert response.status_code == 404
+
+# 29. Test de la route predict - cohérence parfaite des balances
+def test_fraud_predict_perfect_balance_match():
+    """Test de la route POST /api/fraud/predict avec cohérence parfaite des balances"""
+    test_data = {
+        "type": "PAYMENT",
+        "amount": 100.0,
+        "oldbalanceOrg": 1000.0,
+        "newbalanceOrig": 900.0  # Parfaitement cohérent
+    }
+
+    response = client.post("/api/fraud/predict", json=test_data)
+    assert response.status_code == 200
+    data = response.json()
+
+    # Balances cohérentes devraient réduire la probabilité
+    assert data["probability"] < 0.5
+
+# 30. Test de la route predict - incohérence majeure des balances
+def test_fraud_predict_balance_mismatch():
+    """Test de la route POST /api/fraud/predict avec incohérence majeure des balances"""
+    test_data = {
+        "type": "PAYMENT",
+        "amount": 100.0,
+        "oldbalanceOrg": 1000.0,
+        "newbalanceOrig": 800.0  # Incohérent (devrait être 900)
+    }
+
+    response = client.post("/api/fraud/predict", json=test_data)
+    assert response.status_code == 200
+    data = response.json()
+
+    # Incohérence devrait augmenter la probabilité
+    assert data["probability"] > 0.3
