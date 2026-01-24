@@ -1,251 +1,153 @@
+from fastapi import APIRouter
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
-from app.models.fraud_transaction import FraudTransaction
-from app.models.transaction_response import TransactionListResponse
-from app.data.load_data import load_transactions
-from app.fraud_detection_service import FraudDetectionService
-import numpy as np
 
-# Router FastAPI pour la détection de fraude
-fraud_routes = APIRouter()
+from app.data.load_data import load_transactions, load_train_fraud
+from app.models.transaction_entry import TransactionEntry
 
-# Instance du service de détection de fraude
-fraud_service = FraudDetectionService()
+fraud_routes = APIRouter(tags=["Fraude"])
 
-# Route racine
-@fraud_routes.get("/api/fraud/")
-def read_fraud_root():
+
+def prepare_fraud_merge() -> pd.DataFrame:
     """
-    Route racine de l'API de détection de fraude.
+    Prépare et fusionne les données de transactions avec les labels de fraude.
 
-    Returns
-    -------
-    dict
-        Message de bienvenue pour l'API de fraude.
+    - Harmonise les colonnes (`id`, `is_fraud`)
+    - Convertit les types pour éviter les erreurs de fusion
+    - Retourne un DataFrame fusionné
     """
-    return {
-        "message": "Bienvenue dans l'API de détection de fraude bancaire",
-        "description": "API pour analyser et détecter les transactions frauduleuses"
-    }
+    df_trans = load_transactions()
+    df_fraud = load_train_fraud()
 
-# Liste des transactions frauduleuses
-@fraud_routes.get(
-    "/api/fraud/transactions",
-    response_model=TransactionListResponse,
-    summary="Lister les transactions frauduleuses",
-    tags=["Fraude"]
-)
-def get_fraudulent_transactions(
-    limit: int = Query(100, ge=1, le=1000, description="Nombre max de transactions retournées"),
-    offset: int = Query(0, ge=0, description="Décalage pour la pagination")
-) -> TransactionListResponse:
-    """
-    Récupère une liste paginée de transactions frauduleuses.
+    # Transformation de l'index en colonne 'id' si nécessaire
+    if "id" not in df_fraud.columns:
+        df_fraud = df_fraud.reset_index().rename(columns={"index": "id"})
 
-    Returns
-    -------
-    TransactionListResponse
-        Liste de transactions frauduleuses et informations de pagination.
-    """
-    try:
-        df = load_transactions()
+    # Harmonisation du nom de la colonne fraude
+    if "target" in df_fraud.columns:
+        df_fraud = df_fraud.rename(columns={"target": "is_fraud"})
 
-        # Filtrer les transactions frauduleuses (isFraud == 1)
-        if 'isFraud' in df.columns:
-            fraud_df = df[df['isFraud'] == 1]
-        else:
-            # Si pas de colonne isFraud, retourner vide
-            fraud_df = pd.DataFrame()
+    # Conversion forcée des identifiants
+    df_trans["id"] = df_trans["id"].astype(str)
+    df_fraud["id"] = df_fraud["id"].astype(str)
 
-        total = len(fraud_df)
-        df_page = fraud_df.iloc[offset: offset + limit]
-        transactions = df_page.where(pd.notna(df_page), None).to_dict("records")
+    return pd.merge(
+        df_trans,
+        df_fraud[["id", "is_fraud"]],
+        on="id",
+        how="inner",
+    )
 
-        # Replace NaN with None
-        for trans in transactions:
-            for key, value in trans.items():
-                if isinstance(value, float) and np.isnan(value):
-                    trans[key] = None
 
-        return {
-            "total": total,
-            "offset": offset,
-            "limit": limit,
-            "data": transactions
-        }
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des transactions frauduleuses: {str(e)}")
-
-# Statistiques de fraude
-@fraud_routes.get(
-    "/api/fraud/statistics",
-    summary="Statistiques de fraude",
-    tags=["Fraude"]
-)
-def get_fraud_statistics():
-    """
-    Retourne les statistiques sur les transactions frauduleuses.
-    """
-    try:
-        df = load_transactions()
-        return fraud_service.get_fraud_statistics(df)
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du calcul des statistiques: {str(e)}")
-
-# Détection de fraude sur une transaction spécifique
-@fraud_routes.get(
-    "/api/fraud/detect/{transaction_id}",
-    summary="Détecter la fraude sur une transaction",
-    tags=["Fraude"]
-)
-def detect_fraud(transaction_id: int):
-    """
-    Vérifie si une transaction spécifique est frauduleuse.
-    """
-    try:
-        df = load_transactions()
-        return fraud_service.detect_fraud_by_id(df, transaction_id)
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la détection de fraude: {str(e)}")
-
-# Recherche de transactions suspectes (montants élevés)
-@fraud_routes.get(
-    "/api/fraud/suspicious",
-    response_model=TransactionListResponse,
-    summary="Transactions suspectes",
-    tags=["Fraude"]
-)
-def get_suspicious_transactions(
-    threshold: float = Query(1000.0, description="Seuil de montant pour considérer une transaction suspecte")
-) -> TransactionListResponse:
-    """
-    Récupère les transactions avec des montants élevés (potentiellement suspectes).
-    """
-    try:
-        df = load_transactions()
-        suspicious_transactions = fraud_service.get_suspicious_transactions(df, threshold)
-
-        return {
-            "total": len(suspicious_transactions),
-            "offset": 0,
-            "limit": len(suspicious_transactions),
-            "data": suspicious_transactions
-        }
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des transactions suspectes: {str(e)}")
-
-# Vue d'ensemble de la fraude
 @fraud_routes.get(
     "/api/fraud/summary",
-    summary="Vue d'ensemble de la fraude",
-    tags=["Fraude"]
+    summary="Résumé global de la fraude",
+    description="Statistiques globales de fraude incluant précision et rappel simulés."
 )
 def get_fraud_summary():
     """
-    Retourne un résumé global des métriques de fraude.
+    Résumé global de la fraude :
+
+    - **total_frauds** : nombre total de fraudes réelles
+    - **flagged** : transactions signalées (simulation)
+    - **precision** : précision du système
+    - **recall** : rappel du système
+
+    ⚠️ Le champ `flagged` est simulé à partir de la présence d’erreurs.
     """
-    try:
-        df = load_transactions()
+    df = prepare_fraud_merge()
 
-        if 'isFraud' not in df.columns:
-            return {
-                "total_frauds": 0,
-                "flagged": 0,
-                "precision": 0.0,
-                "recall": 0.0
-            }
+    total_frauds = len(df[df["is_fraud"] == "Yes"])
 
-        fraud_df = df[df['isFraud'] == 1]
-        total_frauds = len(fraud_df)
+    # Simulation du flag (présence d'erreurs)
+    df["flagged"] = df["errors"].apply(
+        lambda x: len(str(x)) > 0 if pd.notna(x) else False
+    )
 
-        # Mock values for flagged, precision, recall since we don't have model metrics
-        return {
-            "total_frauds": total_frauds,
-            "flagged": 16,  # Mock value
-            "precision": 0.95,  # Mock value
-            "recall": 0.88  # Mock value
-        }
+    flagged_count = int(df["flagged"].sum())
 
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du calcul du résumé: {str(e)}")
+    # Vrais positifs
+    true_positives = len(
+        df[(df["flagged"]) & (df["is_fraud"] == "Yes")]
+    )
 
-# Répartition du taux de fraude par type de transaction
+    precision = (
+        true_positives / flagged_count
+        if flagged_count > 0
+        else 0
+    )
+    recall = (
+        true_positives / total_frauds
+        if total_frauds > 0
+        else 0
+    )
+
+    return {
+        "total_frauds": int(total_frauds),
+        "flagged": flagged_count,
+        "precision": round(float(precision), 2),
+        "recall": round(float(recall), 2),
+    }
+
+
 @fraud_routes.get(
     "/api/fraud/by-type",
-    summary="Répartition du taux de fraude par type",
-    tags=["Fraude"]
+    summary="Taux de fraude par type de transaction",
+    description="Analyse du taux de fraude selon le type d’utilisation (chip, swipe, online…)."
 )
 def get_fraud_by_type():
     """
-    Retourne la répartition du taux de fraude par type de transaction.
-    """
-    try:
-        df = load_transactions()
-        return {"fraud_by_type": fraud_service.calculate_fraud_by_type(df)}
+    Statistiques de fraude par type de transaction :
 
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du calcul par type: {str(e)}")
-
-# Modèle de prédiction de fraude
-from pydantic import BaseModel
-
-class PredictionRequest(BaseModel):
+    - **fraud_rate** : taux moyen de fraude
+    - **total_transactions** : volume total
     """
-    Modèle pour la requête de prédiction de fraude.
-    """
-    type: str
-    amount: float
-    oldbalanceOrg: float
-    newbalanceOrig: float
+    df = prepare_fraud_merge()
 
-class PredictionResponse(BaseModel):
-    """
-    Modèle pour la réponse de prédiction de fraude.
-    """
-    isFraud: bool
-    probability: float
+    df["is_fraud_val"] = df["is_fraud"].map({"Yes": 1, "No": 0})
 
-# Endpoint de scoring pour prédire la fraude
+    stats_df = (
+        df.groupby("use_chip")["is_fraud_val"]
+        .agg(["mean", "count"])
+        .reset_index()
+    )
+
+    return [
+        {
+            "type": str(row["use_chip"]),
+            "fraud_rate": round(float(row["mean"]), 4),
+            "total_transactions": int(row["count"]),
+        }
+        for _, row in stats_df.iterrows()
+    ]
+
+
 @fraud_routes.post(
     "/api/fraud/predict",
-    response_model=PredictionResponse,
     summary="Prédiction de fraude",
-    tags=["Fraude"]
+    description="Retourne une probabilité de fraude basée sur des règles métier simples."
 )
-def predict_fraud(request: PredictionRequest):
+def predict_fraud(data: TransactionEntry):
     """
-    Prédit si une transaction donnée est frauduleuse basé sur les caractéristiques fournies.
+    Prédiction de fraude basée sur des règles heuristiques.
+
     """
-    transaction_data = {
-        "type": request.type,
-        "amount": request.amount,
-        "oldbalanceOrg": request.oldbalanceOrg,
-        "newbalanceOrig": request.newbalanceOrig
+    amount = data.amount
+    trans_type = data.type
+    balance_diff = data.oldbalanceOrg - data.newbalanceOrig
+
+    probability = 0.0
+
+    # Règle 1 : transfert élevé
+    if trans_type == "TRANSFER" and amount > 1000:
+        probability += 0.4
+
+    # Règle 2 : incohérence de solde
+    if abs(balance_diff - amount) > 0.1:
+        probability += 0.5
+
+    probability = min(probability, 0.99)
+
+    return {
+        "isFraud": probability > 0.5,
+        "probability": round(probability, 2),
     }
-
-    probability = fraud_service.predict_fraud_probability(transaction_data)
-    is_fraud = fraud_service.is_fraudulent(transaction_data)
-
-    return PredictionResponse(
-        isFraud=is_fraud,
-        probability=round(probability, 2)
-    )

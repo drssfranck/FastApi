@@ -1,442 +1,255 @@
+from typing import Optional
+
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
+
+from app.data.load_data import load_transactions
 from app.models.transactions import Transaction
 from app.models.transaction_response import TransactionListResponse
-from app.data.load_data import load_transactions, load_card
 
-# Router FastAPI pour les transactions
-transaction_routes = APIRouter()
+router = APIRouter(tags=["Transactions"])
 
 
+# -------------------------------------------------------------------
+# Utilitaires
+# -------------------------------------------------------------------
 
-
-# Route racine
-
-
-@transaction_routes.get("/")
-def read_root():
+def df_to_records(df: pd.DataFrame) -> list[dict]:
     """
-    Route racine de l'API des transactions.
-
-    Returns
-    -------
-    dict
-        Message de bienvenue et informations sur l'équipe.
+    Convertit un DataFrame Pandas en liste de dicts compatibles Pydantic.
+    Remplace tous les NaN/NA par None.
     """
-    team = [
-        {
-            "name": "Idriss MBE",
-            "email": "i_mbe@stu-mba-esg.com",
-            "github": "https://github.com/idrissmbe"
-        },
-        {
-            "name": "Nadiath SAKA",
-            "email": "y_lam@stu-mba-esg.com",
-            "github": "https://github.com/nadiathsaka"
-        },
-        {
-            "name": "Michele FAMENI",
-            "email": "m_fameningankoue@stu-mba-esg.com",
-            "github": "https://github.com/famenimichele"
-        },
-        {
-            "name": "Raouf",
-            "email": "y_lam@stu-mba-esg.com",
-            "github": "https://github.com/raouf"
-        }
-    ]
-
-    return {
-        "message": "Bienvenue dans l'API des transactions bancaires",
-        "team": team
-    }
+    return df.where(pd.notna(df), None).replace({pd.NA: None, float("nan"): None}).to_dict("records")
 
 
+def paginate_dataframe(df: pd.DataFrame, offset: int, limit: int):
+    """
+    Applique une pagination simple sur un DataFrame.
+    """
+    total = len(df)
+    page = df.iloc[offset: offset + limit]
+    data = df_to_records(page)
+    return total, data
 
 
-# 4. Liste des types de transactions
-@transaction_routes.get(
+# -------------------------------------------------------------------
+# Endpoints
+# -------------------------------------------------------------------
+
+@router.get(
     "/api/transactions/types",
     summary="Lister les types de transactions",
-    tags=["Transactions"]
 )
 def get_transaction_types():
     """
     Retourne la liste des types de transactions disponibles.
     """
-    try:
-        df = load_transactions()
-        types = df["use_chip"].dropna().unique().tolist()
-        return {"types": types}
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des types de transactions: {str(e)}")
+    df = load_transactions()
+    types = df["use_chip"].dropna().unique().tolist()
+    return {"types": types}
 
 
-
-
-
-
-# 1.Liste paginée de transactions
-@transaction_routes.get(
+@router.get(
     "/api/transactions",
     response_model=TransactionListResponse,
     summary="Lister les transactions",
-    tags=["Transactions"]
 )
 def get_transactions(
-    limit: int = Query(100, ge=1, le=1000, description="Nombre max de transactions retournées"),
-    offset: int = Query(0, ge=0, description="Décalage pour la pagination"),
-    client_id: Optional[int] = Query(None, description="Filtrer par ID client"),
-    min_amount: Optional[float] = Query(None, description="Montant minimum"),
-    max_amount: Optional[float] = Query(None, description="Montant maximum"),
-    start_date: Optional[str] = Query(None, description="Date de début (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(None, description="Date de fin (YYYY-MM-DD)")
-) -> TransactionListResponse:
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    client_id: Optional[int] = Query(None),
+    min_amount: Optional[float] = Query(None),
+    max_amount: Optional[float] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+):
     """
-    Récupère une liste paginée de transactions avec filtres optionnels.
-
-    Returns
-    -------
-    TransactionListResponse
-        Liste de transactions et informations de pagination.
+    Liste paginée des transactions avec filtres optionnels.
     """
     try:
         df = load_transactions()
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
-        # Filtres dynamiques
-        if client_id is not None:
-            df = df[df["client_id"] == client_id]
-
-        if min_amount is not None:
-            df = df[df["amount"] >= min_amount]
-
-        if max_amount is not None:
-            df = df[df["amount"] <= max_amount]
-
-        if start_date:
-            df = df[df["date"] >= pd.to_datetime(start_date)]
-
-        if end_date:
-            df = df[df["date"] <= pd.to_datetime(end_date)]
-
-        total = len(df)
-        df_page = df.iloc[offset: offset + limit]
-        transactions = df_page.where(pd.notna(df_page), None).to_dict("records")
-
-        return {
-            "total": total,
-            "offset": offset,
-            "limit": limit,
-            "data": transactions
-        }
-
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des transactions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
+
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    # Filtres dynamiques
+    if client_id is not None:
+        df = df[df["client_id"] == client_id]
+
+    if min_amount is not None:
+        df = df[df["amount"] >= min_amount]
+
+    if max_amount is not None:
+        df = df[df["amount"] <= max_amount]
+
+    if start_date:
+        df = df[df["date"] >= pd.to_datetime(start_date)]
+
+    if end_date:
+        df = df[df["date"] <= pd.to_datetime(end_date)]
+
+    total, data = paginate_dataframe(df, offset, limit)
+
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "data": data,
+    }
 
 
-# Recherche avancée de transactions
-@transaction_routes.post(
+@router.post(
     "/api/transactions/search",
     response_model=TransactionListResponse,
     summary="Recherche avancée de transactions",
-    tags=["Transactions"]
 )
 def search_transactions(search_query: dict):
     """
-    Recherche avancée de transactions avec filtres multicritère.
-    
-    Parameters
-    ----------
-    search_query : dict
-        Corps JSON contenant les critères de recherche:
-        - type (str, optional): Type de transaction
-        - isFraud (int, optional): 0 = non fraude, 1 = fraude
-        - amount_range (list, optional): [montant_min, montant_max]
-    
-    Returns
-    -------
-    TransactionListResponse
-        Transactions correspondant aux critères
+    Recherche avancée multicritère.
     """
-    try:
-        df = load_transactions()
+    df = load_transactions()
 
-        if "type" in search_query and search_query["type"]:
-            df = df[df["type"] == search_query["type"]]
+    if search_query.get("type"):
+        df = df[df["use_chip"] == search_query["type"]]
 
-        if "isFraud" in search_query and search_query["isFraud"] is not None:
-            df = df[df["isFraud"] == search_query["isFraud"]]
+    if search_query.get("isFraud") is not None:
+        df = df[df["isFraud"] == search_query["isFraud"]]
 
-        if "amount_range" in search_query and search_query["amount_range"]:
-            min_amount, max_amount = search_query["amount_range"]
-            df = df[(df["amount"] >= min_amount) & (df["amount"] <= max_amount)]
+    if search_query.get("amount_range"):
+        min_amount, max_amount = search_query["amount_range"]
+        df = df[(df["amount"] >= min_amount) & (df["amount"] <= max_amount)]
 
-        transactions = df.where(pd.notna(df), None).to_dict("records")
+    total = len(df)
+    data = df_to_records(df)
 
-        return {
-            "total": len(transactions),
-            "offset": 0,
-            "limit": len(transactions),
-            "data": transactions
-        }
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la recherche: {str(e)}")
-    
+    return {
+        "total": total,
+        "offset": 0,
+        "limit": total,
+        "data": data,
+    }
 
 
-
-
-
-    # Route 5: Transactions récentes
-@transaction_routes.get(
+@router.get(
     "/api/transactions/recent",
     response_model=TransactionListResponse,
-    summary="Récupérer les transactions récentes",
-    tags=["Transactions"]
+    summary="Transactions récentes",
 )
 def get_recent_transactions(
-    n: int = Query(10, ge=1, le=100, description="Nombre de transactions récentes")
-) -> TransactionListResponse:
+    n: int = Query(10, ge=1, le=100),
+):
     """
-    Renvoie les N dernières transactions du dataset.
-
-    Parameters
-    ----------
-    n : int
-        Nombre de transactions récentes à retourner (défaut: 10)
-
-    Returns
-    -------
-    TransactionListResponse
-        Liste des N dernières transactions
+    Retourne les N transactions les plus récentes.
     """
-    try:
-        df = load_transactions()
-        
-        # Tri par step (temps) décroissant pour avoir les plus récentes
-        if "step" in df.columns:
-            df_sorted = df.sort_values("step", ascending=False)
-        else:
-            # Sinon prendre les dernières lignes
-            df_sorted = df
+    df = load_transactions()
 
-        recent = df_sorted.head(n)
-        transactions = recent.where(pd.notna(recent), None).to_dict("records")
+    df_sorted = df.sort_values("step", ascending=False) if "step" in df.columns else df
+    data = df_to_records(df_sorted.head(n))
 
-        return {
-            "page": 1,
-            "total": len(transactions),
-            "offset": 0,
-            "limit": n,
-            "data": transactions
-        }
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des transactions récentes: {str(e)}")
+    return {
+        "total": len(data),
+        "offset": 0,
+        "limit": n,
+        "data": data,
+    }
 
 
-
-# 2.Récupération d'une transaction par ID
-@transaction_routes.get(
+@router.get(
     "/api/transactions/{transaction_id}",
     response_model=Transaction,
     summary="Récupérer une transaction par ID",
-    tags=["Transactions"]
 )
 def get_transaction_by_id(transaction_id: int):
     """
-    Récupère une transaction par son ID.
+    Retourne une transaction par son identifiant.
     """
-    try:
-        df = load_transactions()
-        transaction = df[df["id"] == transaction_id]
+    df = load_transactions()
+    transaction = df[df["id"] == transaction_id]
 
-        if transaction.empty:
-            raise HTTPException(status_code=404, detail="Transaction non trouvée")
+    if transaction.empty:
+        raise HTTPException(status_code=404, detail="Transaction non trouvée")
 
-        return transaction.iloc[0].to_dict()
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement de la transaction: {str(e)}")
+    return df_to_records(transaction)[0]
 
 
-# 6. Suppression d'une transaction (mode test)
-@transaction_routes.delete(
+@router.delete(
     "/api/transactions/{transaction_id}",
-    summary="Supprimer une transaction",
-    tags=["Transactions"]
+    summary="Supprimer une transaction (mode test)",
 )
 def delete_transaction(transaction_id: int):
     """
-    Supprime une transaction fictive (utilisée uniquement en mode test).
-    
-    Parameters
-    ----------
-    transaction_id : int
-        ID de la transaction à supprimer
-        
-    Returns
-    -------
-    dict
-        Message de confirmation de suppression
+    Suppression simulée d'une transaction.
     """
-    try:
-        df = load_transactions()
-        
-        if transaction_id not in df["id"].values:
-            raise HTTPException(status_code=404, detail=f"Transaction {transaction_id} non trouvée")
-        
-        # Simulation de suppression (dans un vrai projet, on mettrait à jour la DB)
-        return {
-            "message": f"Transaction {transaction_id} supprimée avec succès",
-            "transaction_id": transaction_id
-        }
+    df = load_transactions()
 
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")
+    if transaction_id not in df["id"].values:
+        raise HTTPException(status_code=404, detail="Transaction non trouvée")
+
+    return {
+        "message": f"Transaction {transaction_id} supprimée avec succès",
+        "transaction_id": transaction_id,
+    }
 
 
-# 7. Transactions par client (origine - émetteur)
-@transaction_routes.get(
+@router.get(
     "/api/transactions/by-customer/{customer_id}",
     response_model=TransactionListResponse,
     summary="Transactions émises par un client",
-    tags=["Transactions"]
 )
 def get_transactions_by_customer(
     customer_id: int,
-    limit: int = Query(100, ge=1, le=1000, description="Nombre max de transactions retournées"),
-    offset: int = Query(0, ge=0, description="Décalage pour la pagination")
-) -> TransactionListResponse:
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
     """
-    Récupère toutes les transactions émises par un client (origine).
-    
-    Parameters
-    ----------
-    customer_id : int
-        ID du client émetteur
-    limit : int
-        Nombre maximum de transactions à retourner
-    offset : int
-        Décalage pour la pagination
-        
-    Returns
-    -------
-    TransactionListResponse
-        Liste paginée des transactions du client
+    Transactions dont le client est l’émetteur.
     """
-    try:
-        df = load_transactions()
-        
-        # Filtrer par client_id (émetteur/origine)
-        df_customer = df[df["client_id"] == customer_id]
+    df = load_transactions()
+    df_customer = df[df["client_id"] == customer_id]
 
-        if df_customer.empty:
-            return {
-                "total": 0,
-                "offset": offset,
-                "limit": limit,
-                "data": []
-            }
+    total, data = paginate_dataframe(df_customer, offset, limit)
 
-        total = len(df_customer)
-        df_page = df_customer.iloc[offset: offset + limit]
-        transactions = df_page.where(pd.notna(df_page), None).to_dict("records")
-
-        return {
-            "total": total,
-            "offset": offset,
-            "limit": limit,
-            "data": transactions
-        }
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des transactions: {str(e)}")
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "data": data,
+    }
 
 
-# 8. Transactions reçues par un client (destination)
-@transaction_routes.get(
+@router.get(
     "/api/transactions/to-customer/{customer_id}",
     response_model=TransactionListResponse,
     summary="Transactions reçues par un client",
-    tags=["Transactions"]
 )
 def get_transactions_to_customer(
     customer_id: int,
-    limit: int = Query(100, ge=1, le=1000, description="Nombre max de transactions retournées"),
-    offset: int = Query(0, ge=0, description="Décalage pour la pagination")
-) -> TransactionListResponse:
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
     """
-    Récupère toutes les transactions reçues par un client (destination).
-    
-    Parameters
-    ----------
-    customer_id : int
-        ID du client destinataire
-    limit : int
-        Nombre maximum de transactions à retourner
-    offset : int
-        Décalage pour la pagination
-        
-    Returns
-    -------
-    TransactionListResponse
-        Liste paginée des transactions reçues par le client
+    Transactions dont le client est le destinataire.
     """
-    try:
-        df = load_transactions()
-        
-        # Filtrer par client_id_dest ou receiver_id selon la structure du dataset
-        # Adapter le nom de la colonne selon votre dataset
-        if "client_id_dest" in df.columns:
-            df_customer = df[df["client_id_dest"] == customer_id]
-        elif "receiver_id" in df.columns:
-            df_customer = df[df["receiver_id"] == customer_id]
-        else:
-            # Si aucune colonne de destination, retourner un message explicite
-            raise HTTPException(
-                status_code=400, 
-                detail="Colonne de destination non trouvée dans le dataset (attendu: client_id_dest ou receiver_id)"
-            )
+    df = load_transactions()
 
-        if df_customer.empty:
-            return {
-                "total": 0,
-                "offset": offset,
-                "limit": limit,
-                "data": []
-            }
+    if "client_id_dest" in df.columns:
+        df_customer = df[df["client_id_dest"] == customer_id]
+    elif "receiver_id" in df.columns:
+        df_customer = df[df["receiver_id"] == customer_id]
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Colonne de destination absente (client_id_dest ou receiver_id)",
+        )
 
-        total = len(df_customer)
-        df_page = df_customer.iloc[offset: offset + limit]
-        transactions = df_page.where(pd.notna(df_page), None).to_dict("records")
+    total, data = paginate_dataframe(df_customer, offset, limit)
 
-        return {
-            "total": total,
-            "offset": offset,
-            "limit": limit,
-            "data": transactions
-        }
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Fichier de transactions introuvable")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des transactions: {str(e)}")
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "data": data,
+    }

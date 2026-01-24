@@ -12,16 +12,19 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.10', '3.11']
-    
+
     steps:
+      # 1. Checkout du repository
       - name: Checkout repository
         uses: actions/checkout@v3
-      
+
+      # 2. Configuration de Python
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      
+
+      # 3. Cache pip
       - name: Cache pip
         uses: actions/cache@v3
         with:
@@ -29,24 +32,40 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      
+
+      # 4. Installation des dépendances
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      # --- ÉTAPE CRUCIALE : CRÉATION DES FICHIERS AVEC EN-TÊTES ---
+
+      # 5. Création des fichiers simulés pour les tests
       - name: Create dummy data for tests
         run: |
           mkdir -p app/data/dataset
-          # On écrit une colonne 'id' pour que Pandas ne dise plus 'EmptyDataError'
           echo "id" > app/data/dataset/cards_data.csv
           echo "id" > app/data/dataset/users_data.csv
           echo "id" > app/data/dataset/transactions_data.csv
-          # Pour les JSON, on met un objet vide
           echo "{}" > app/data/dataset/mcc_codes.json
           echo "{}" > app/data/dataset/train_fraud_labels.json
           echo "Fichiers simulés créés avec succès."
 
+      # 6. Configuration des secrets Kaggle (pour l'importation des données)
+      - name: Set up Kaggle credentials
+        run: |
+          echo "KAGGLE_USERNAME=${{ secrets.KAGGLE_USERNAME }}" >> $GITHUB_ENV
+          echo "KAGGLE_KEY=${{ secrets.KAGGLE_KEY }}" >> $GITHUB_ENV
+
+      # 7. Vérification de l'existence des secrets Kaggle
+      - name: Verify Kaggle credentials
+        run: |
+          if [[ -z "$KAGGLE_USERNAME" || -z "$KAGGLE_KEY" ]]; then
+            echo "❌ Kaggle credentials missing!"
+            exit 1
+          else
+            echo "✅ Kaggle credentials verified."
+          fi
+
+      # 8. Exécution des tests
       - name: Run tests
         run: pytest -v

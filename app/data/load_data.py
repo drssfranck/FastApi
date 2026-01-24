@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
 
-DATA_DIR = Path("app/data/dataset") 
+DATA_DIR = Path("app/data/dataset")
 
 _transactions_df = None
 _df_card_data = None
@@ -56,11 +56,34 @@ def load_mcc_codes():
 
     return _mcc_codes_df
 
-def load_train_fraud():
-    """Charge les données d'entraînement de fraude à partir du fichier csv."""
-    
+
+def load_train_fraud() -> pd.DataFrame:
+    """Charge les labels de fraude à partir du fichier JSON."""
     global _train_fraud_df
-    _train_fraud_df = pd.read_json(DATA_DIR / "train_fraud_labels.json")
+
+    # On ne charge que si la variable globale est vide (None)
+    if _train_fraud_df is None:
+        file_path = DATA_DIR / "train_fraud_labels.json"
+        try:
+            # Lecture directe du dictionnaire
+            import json
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+
+            # Conversion de la clé "target" en DataFrame
+            # .items() crée deux colonnes : l'index (ID) et la valeur (Yes/No)
+            _train_fraud_df = pd.DataFrame(
+                list(data['target'].items()),
+                columns=['transaction_id', 'is_fraud']
+            )
+
+            # Optimisation optionnelle : convertir les ID en numérique
+            _train_fraud_df['transaction_id'] = pd.to_numeric(_train_fraud_df['transaction_id'])
+
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Fichier {file_path.name} introuvable dans {DATA_DIR}")
+        except Exception as e:
+            raise Exception(f"Erreur lors du chargement des labels: {e}")
 
     return _train_fraud_df
 
