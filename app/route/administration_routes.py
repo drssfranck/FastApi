@@ -3,7 +3,10 @@ import os
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-import tomllib
+try:
+    import tomllib  # pour Python 3.11+
+except ImportError:
+    import tomli as tomllib
 from fastapi import APIRouter
 
 from app.data.load_data import (
