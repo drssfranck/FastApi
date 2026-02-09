@@ -8,9 +8,9 @@ version = "1.0.0"
 description = "API FastAPI pour la gestion des transactions bancaires"
 authors = [
     {name = "Idriss MBE", email = "i_mbe@stu-mba-esg.com"},
-    {name = "Nadiath SAKA", email = "y_lam@stu-mba-esg.com"},
-    {name = "Michele FAMENI", email = "y_lam@stu-mba-esg.com"},
-    {name = "Raouf", email = "y_lam@stu-mba-esg.com"}
+    {name = "Nadiath SAKA", email = "n_saka@stu-mba-esg.com"},
+    {name = "Michele FAMENI", email = "m_fameni@stu-mba-esg.com"},
+    {name = "Raouf", email = "r_orougoura@stu-mba-esg.com"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
