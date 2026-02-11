@@ -19,8 +19,16 @@ dependencies = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "pandas>=2.0.0",
-    "pydantic>=2.5.0"
+    "pydantic>=2.5.0",
+    "numpy>=2.2.6",
 ]
 
 [tool.setuptools.packages.find]
 where = ["app"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]

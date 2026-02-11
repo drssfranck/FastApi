@@ -11,7 +11,7 @@ COPY requirements.txt .
 
 # Installer les dépendances
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirem ents.txt
 
 # Créer l'utilisateur non-root pour exécuter l'application
 RUN useradd -m appuser

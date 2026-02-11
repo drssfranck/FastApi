@@ -98,3 +98,45 @@ def get_top_customers(
         }
         for _, row in merged_df.iterrows()
     ]
+
+
+
+
+@client_route.get(
+    "/api/customers",
+    summary="Liste paginée des clients",
+    description="Retourne une liste paginée des clients extraits du champ nameOrig."
+)
+def list_customers(
+    page: int = Query(default=1, ge=1, description="Numéro de page"),
+    limit: int = Query(default=20, ge=1, le=200, description="Nombre d’éléments par page")
+):
+    """
+    Liste paginée des clients basés sur le champ **nameOrig** du dataset.
+
+    - **page** : numéro de page (>=1)
+    - **limit** : nombre de clients par page (1 à 200)
+
+    ### Données retournées
+    - Liste unique des identifiants clients
+    - Pagination : page, total, total_pages
+    """
+
+    transactions_df = load_transactions()
+
+    # Extraction des clients uniques
+    customers = transactions_df["nameOrig"].unique()
+    total = len(customers)
+
+    # Pagination
+    start = (page - 1) * limit
+    end = start + limit
+    paginated_customers = customers[start:end]
+
+    return {
+        "page": page,
+        "limit": limit,
+        "total_customers": total,
+        "total_pages": (total // limit) + (1 if total % limit else 0),
+        "customers": paginated_customers.tolist()
+    }
