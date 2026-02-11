@@ -10,7 +10,8 @@ def load_project_metadata() -> dict:
     Charge les métadonnées du projet depuis le fichier `pyproject.toml`.
 
     Retourne la section `[project]` du fichier TOML.
-    En cas d’erreur (fichier absent, structure invalide), retourne un dictionnaire vide.
+    En cas d’erreur (fichier absent, structure invalide),
+    retourne un dictionnaire vide.
     """
     try:
         # Remonter à la racine du projet (ex: app/route -> racine)
@@ -29,7 +30,8 @@ PROJECT_METADATA = load_project_metadata()
 @root_routes.get(
     "/",
     summary="Informations générales de l’API",
-    description="Expose les métadonnées de l’application (nom, version, équipe)."
+    description="Expose les métadonnées de l’application "
+                "(nom, version, équipe).",
 )
 def read_root():
     """

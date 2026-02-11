@@ -8,10 +8,10 @@ from app.route.administration_routes import administration_route
 from app.route.statistiques_routes import stat_router
 from app.route.fraude_routes import fraud_routes
 
-
 app = FastAPI(
     title="Fraud Detection API",
-    description="API de démonstration pour l’analyse de transactions et la détection de fraude.",
+    description="API de démonstration pour l’analyse "
+                "de transactions et la détection de fraude.",
     version="1.0.0",
 )
 
