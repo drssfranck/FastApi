@@ -3,10 +3,12 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
+
 class FraudTransaction(BaseModel):
     """
     Schéma représentant une transaction frauduleuse.
     """
+
     id: int
     date: Optional[datetime]
     client_id: int

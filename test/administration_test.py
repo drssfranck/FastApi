@@ -42,22 +42,12 @@ def test_health_missing_dataset(client, monkeypatch):
 
 def test_metadata_success(client, tmp_path, monkeypatch):
     monkeypatch.setattr(
-        admin,
-        "load_project_metadata",
-        lambda: {"version": "1.2.3"}
+        admin, "load_project_metadata", lambda: {"version": "1.2.3"}
     )
 
-    monkeypatch.setattr(
-        admin.Path,
-        "exists",
-        lambda self: True
-    )
+    monkeypatch.setattr(admin.Path, "exists", lambda self: True)
 
-    monkeypatch.setattr(
-        admin.os.path,
-        "getmtime",
-        lambda _: 1700000000
-    )
+    monkeypatch.setattr(admin.os.path, "getmtime", lambda _: 1700000000)
 
     response = client.get("/api/system/metadata")
     data = response.json()

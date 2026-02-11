@@ -3,37 +3,20 @@ from app.route import fraude_routes as fraud
 
 
 def mock_prepare_df():
-    return pd.DataFrame([
-        {
-            "id": "1",
-            "is_fraud": "Yes",
-            "errors": "E1",
-            "use_chip": "CHIP"
-        },
-        {
-            "id": "2",
-            "is_fraud": "No",
-            "errors": None,
-            "use_chip": "SWIPE"
-        },
-        {
-            "id": "3",
-            "is_fraud": "Yes",
-            "errors": "E2",
-            "use_chip": "CHIP"
-        },
-    ])
+    return pd.DataFrame(
+        [
+            {"id": "1", "is_fraud": "Yes", "errors": "E1", "use_chip": "CHIP"},
+            {"id": "2", "is_fraud": "No", "errors": None, "use_chip": "SWIPE"},
+            {"id": "3", "is_fraud": "Yes", "errors": "E2", "use_chip": "CHIP"},
+        ]
+    )
 
 
 # -----------------------------
 # /api/fraud/summary
 # -----------------------------
 def test_fraud_summary(client, monkeypatch):
-    monkeypatch.setattr(
-        fraud,
-        "prepare_fraud_merge",
-        mock_prepare_df
-    )
+    monkeypatch.setattr(fraud, "prepare_fraud_merge", mock_prepare_df)
 
     response = client.get("/api/fraud/summary")
     data = response.json()
@@ -49,11 +32,7 @@ def test_fraud_summary(client, monkeypatch):
 # /api/fraud/by-type
 # -----------------------------
 def test_fraud_by_type(client, monkeypatch):
-    monkeypatch.setattr(
-        fraud,
-        "prepare_fraud_merge",
-        mock_prepare_df
-    )
+    monkeypatch.setattr(fraud, "prepare_fraud_merge", mock_prepare_df)
 
     response = client.get("/api/fraud/by-type")
     data = response.json()
@@ -74,7 +53,7 @@ def test_predict_fraud_positive(client):
         "amount": 2000,
         "type": "TRANSFER",
         "oldbalanceOrg": 5000,
-        "newbalanceOrig": 2000
+        "newbalanceOrig": 2000,
     }
 
     response = client.post("/api/fraud/predict", json=payload)
@@ -90,7 +69,7 @@ def test_predict_fraud_negative(client):
         "amount": 100,
         "type": "PAYMENT",
         "oldbalanceOrg": 1000,
-        "newbalanceOrig": 900
+        "newbalanceOrig": 900,
     }
 
     response = client.post("/api/fraud/predict", json=payload)

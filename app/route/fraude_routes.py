@@ -1,7 +1,11 @@
-from fastapi import APIRouter
-import pandas as pd
+"""Routes pour l'analyse et la prédiction de fraude."""
 
-from app.data.load_data import load_transactions, load_train_fraud
+from typing import Any, Dict, List
+
+import pandas as pd
+from fastapi import APIRouter
+
+from app.data.load_data import load_train_fraud, load_transactions
 from app.models.transaction_entry import TransactionEntry
 
 fraud_routes = APIRouter(tags=["Fraude"])
@@ -14,6 +18,9 @@ def prepare_fraud_merge() -> pd.DataFrame:
     - Harmonise les colonnes (`id`, `is_fraud`)
     - Convertit les types pour éviter les erreurs de fusion
     - Retourne un DataFrame fusionné
+
+    Returns:
+        DataFrame fusionné avec transactions et labels de fraude
     """
     df_trans = load_transactions()
     df_fraud = load_train_fraud()
@@ -41,18 +48,26 @@ def prepare_fraud_merge() -> pd.DataFrame:
 @fraud_routes.get(
     "/api/fraud/summary",
     summary="Résumé global de la fraude",
-    description="Statistiques globales de fraude incluant précision et rappel simulés."
+    description=(
+        "Statistiques globales de fraude incluant "
+        "précision et rappel simulés."
+    ),
 )
-def get_fraud_summary():
+def get_fraud_summary() -> Dict[str, Any]:
     """
-    Résumé global de la fraude :
+    Résumé global de la fraude.
 
+    Returns:
+        Dict contenant les statistiques de fraude
+
+    ### Statistiques retournées
     - **total_frauds** : nombre total de fraudes réelles
     - **flagged** : transactions signalées (simulation)
     - **precision** : précision du système
     - **recall** : rappel du système
 
-    ⚠️ Le champ `flagged` est simulé à partir de la présence d’erreurs.
+    Note:
+        Le champ `flagged` est simulé à partir de la présence d'erreurs.
     """
     df = prepare_fraud_merge()
 
@@ -66,20 +81,10 @@ def get_fraud_summary():
     flagged_count = int(df["flagged"].sum())
 
     # Vrais positifs
-    true_positives = len(
-        df[(df["flagged"]) & (df["is_fraud"] == "Yes")]
-    )
+    true_positives = len(df[(df["flagged"]) & (df["is_fraud"] == "Yes")])
 
-    precision = (
-        true_positives / flagged_count
-        if flagged_count > 0
-        else 0
-    )
-    recall = (
-        true_positives / total_frauds
-        if total_frauds > 0
-        else 0
-    )
+    precision = true_positives / flagged_count if flagged_count > 0 else 0.0
+    recall = true_positives / total_frauds if total_frauds > 0 else 0.0
 
     return {
         "total_frauds": int(total_frauds),
@@ -92,12 +97,19 @@ def get_fraud_summary():
 @fraud_routes.get(
     "/api/fraud/by-type",
     summary="Taux de fraude par type de transaction",
-    description="Analyse du taux de fraude selon le type d’utilisation (chip, swipe, online…)."
+    description=(
+        "Analyse du taux de fraude selon le type "
+        "d'utilisation (chip, swipe, online…)."
+    ),
 )
-def get_fraud_by_type():
+def get_fraud_by_type() -> List[Dict[str, Any]]:
     """
-    Statistiques de fraude par type de transaction :
+    Statistiques de fraude par type de transaction.
 
+    Returns:
+        Liste des statistiques par type de transaction
+
+    ### Statistiques retournées
     - **fraud_rate** : taux moyen de fraude
     - **total_transactions** : volume total
     """
@@ -111,7 +123,7 @@ def get_fraud_by_type():
         .reset_index()
     )
 
-    return [
+    result: List[Dict[str, Any]] = [
         {
             "type": str(row["use_chip"]),
             "fraud_rate": round(float(row["mean"]), 4),
@@ -120,16 +132,30 @@ def get_fraud_by_type():
         for _, row in stats_df.iterrows()
     ]
 
+    return result
+
 
 @fraud_routes.post(
     "/api/fraud/predict",
     summary="Prédiction de fraude",
-    description="Retourne une probabilité de fraude basée sur des règles métier simples."
+    description=(
+        "Retourne une probabilité de fraude basée "
+        "sur des règles métier simples."
+    ),
 )
-def predict_fraud(data: TransactionEntry):
+def predict_fraud(data: TransactionEntry) -> Dict[str, Any]:
     """
     Prédiction de fraude basée sur des règles heuristiques.
 
+    Args:
+        data: Données de la transaction à analyser
+
+    Returns:
+        Dict contenant la prédiction et la probabilité
+
+    ### Règles appliquées
+    - Règle 1 : transfert élevé
+    - Règle 2 : incohérence de solde
     """
     amount = data.amount
     trans_type = data.type
