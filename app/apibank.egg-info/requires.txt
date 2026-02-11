@@ -1,4 +1,8 @@
 fastapi>=0.100.0
+<<<<<<< HEAD
 uvicorn[standard]>=0.23.0
+=======
+uvicorn>=0.23.0
+>>>>>>> f2318c58fb7bd4631c232c45baf036cc4e3fb1f0
 pandas>=2.0.0
 pydantic>=2.5.0

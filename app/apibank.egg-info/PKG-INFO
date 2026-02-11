@@ -7,7 +7,11 @@ License: MIT
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: fastapi>=0.100.0
+<<<<<<< HEAD
 Requires-Dist: uvicorn[standard]>=0.23.0
+=======
+Requires-Dist: uvicorn>=0.23.0
+>>>>>>> f2318c58fb7bd4631c232c45baf036cc4e3fb1f0
 Requires-Dist: pandas>=2.0.0
 Requires-Dist: pydantic>=2.5.0
 
