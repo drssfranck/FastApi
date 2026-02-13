@@ -1,5 +1,4 @@
 # Dataset (fichiers volumineux)
-dataset/
 *.csv
 *.json
 
