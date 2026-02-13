@@ -8,9 +8,9 @@ version = "1.0.0"
 description = "API FastAPI pour la gestion des transactions bancaires"
 authors = [
     {name = "Idriss MBE", email = "i_mbe@stu-mba-esg.com"},
-    {name = "Nadiath SAKA", email = "y_lam@stu-mba-esg.com"},
-    {name = "Michele FAMENI", email = "y_lam@stu-mba-esg.com"},
-    {name = "Raouf", email = "y_lam@stu-mba-esg.com"}
+    {name = "Nadiath SAKA", email = "n_saka@stu-mba-esg.com"},
+    {name = "Michele FAMENI", email = "m_fameni@stu-mba-esg.com"},
+    {name = "Raouf", email = "r_orougoura@stu-mba-esg.com"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
@@ -19,8 +19,16 @@ dependencies = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "pandas>=2.0.0",
-    "pydantic>=2.5.0"
+    "pydantic>=2.5.0",
+    "numpy>=2.2.6",
 ]
 
 [tool.setuptools.packages.find]
 where = ["app"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]

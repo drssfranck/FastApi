@@ -2,10 +2,12 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
+
 class Transaction(BaseModel):
     """
     Schéma représentant une transaction bancaire.
     """
+
     id: int
     date: Optional[datetime]
     client_id: int
@@ -19,5 +21,5 @@ class Transaction(BaseModel):
     mcc: Optional[int]
     errors: Optional[str]
 
-    # Configuration Pydantic 
+    # Configuration Pydantic
     model_config = ConfigDict(from_attributes=True)
