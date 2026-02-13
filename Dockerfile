@@ -23,10 +23,5 @@ COPY ./app ./app
 # Exposer le port
 EXPOSE 8000
 
-# Ajouter la gestion des variables d'environnement pour Kaggle
-# Utiliser des variables d'environnement pour éviter d'inclure le fichier kaggle.json dans l'image
-ENV KAGGLE_USERNAME=${KAGGLE_USERNAME}
-ENV KAGGLE_KEY=${KAGGLE_KEY}
-
 # Commande de démarrage pour lancer l'importation des données une seule fois et démarrer FastAPI
-CMD ["sh", "-c", "python app/data/import_data.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000"]
