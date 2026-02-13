@@ -105,8 +105,9 @@ def load_train_fraud() -> pd.DataFrame:
             )
 
         except FileNotFoundError:
-            raise FileNotFoundError(f"Fichier {
-                    file_path.name} introuvable dans {DATA_DIR}")
+            raise FileNotFoundError(
+                f"Fichier {file_path.name} introuvable dans {DATA_DIR}"
+            )
         except Exception as e:
             raise Exception(f"Erreur lors du chargement des labels: {e}")
 
