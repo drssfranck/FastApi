@@ -1,5 +1,4 @@
 # Dataset (fichiers volumineux)
-dataset/
 *.csv
 *.json
 
@@ -29,8 +28,3 @@ kaggle.json
 # OS
 .DS_Store
 Thumbs.db
-
-# Packaging Python
-*.egg-info/
-dist/
-build/
